@@ -1,85 +1,77 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect
 import configparser
 import subprocess
-import shlex
-import psutil
 import os
-import json,urllib.request
-
-running=False
-runningServer="None"
-
-def startProgramm(cmd):
-	stopProgramm()
-	command = "./lan-play --netif eth0 --relay-server-addr "+cmd
-	logfile = open('output', 'w', 1)
-	proc = subprocess.Popen(shlex.split(command), stdout=logfile, bufsize=1)
-	return True
-	
-def stopProgramm():
-	global runningServer
-	os.system("killall -9 lan-play")
-	runningServer = "None"
-	return False
-    	
-def getServers():
-	servers = []
-	config = configparser.ConfigParser()
-	config.read('config.ini')
-	
-	for server in config['Servers']:
-		dummy = []
-		dummy.append(server)
-		#ping server
-		dummy.append(config['Servers'][server])
-		server_address = config['Servers'][server][:-6]
-
-		# Checking a different port for a specific server
-		if server == 'joinsg':
-   		 	port_to_check = 11453  # Replace with the specific port for this server
-		else:
-    			port_to_check = 11451  # Replace with the default port for other servers
-
-		# Using os.system nc to check if the port is open
-		up = True if os.system(f"nc -zv -w 1 {server_address} {port_to_check}") == 0 else False
-		dummy.append(up)
-		#get online count
-		data = urllib.request.urlopen("http://"+config['Servers'][server]+"/info").read()
-		output = json.loads(data)
-		dummy.append(output["online"])
-		servers.append(dummy)
-
-	return servers
+import json
+import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
 
+runningServer = "None"
+proc = None
+
+
+def startProgramm(cmd):
+	global proc
+	stopProgramm()
+	command = f"./lan-play --relay-server-addr {cmd}"
+	proc = subprocess.Popen(command.split(), stdout=open('output', 'w', 1))
+
+
+def stopProgramm():
+	global runningServer
+	if proc is not None:
+		proc.terminate()
+		proc.wait()
+	runningServer = "None"
+
+
+def check_server(server, address):
+	server_address = address[:-6]
+	port_to_check = address[-5:]
+
+	# Using os.system nc to check if the port is open
+	up = os.system(f"nc -zv -w 1 {server_address} {port_to_check}") == 0
+
+	# get online count
+	data = urllib.request.urlopen(f"http://{address}/info").read()
+
+	return [server, address, up, json.loads(data)["online"]]
+
+
+def getServers():
+	config = configparser.ConfigParser()
+	config.read('config.ini')
+	with ThreadPoolExecutor() as executor:
+		servers = list(executor.map(check_server, config['Servers'].keys(), config['Servers'].values()))
+	return servers
+
+
 @app.route('/', methods=['POST', 'GET'])
 def index():
-	global runningServer
 	servers = getServers()
 	return render_template('index.html', servers=servers, runningServer=runningServer)
 
+
 @app.route("/run/", methods=['POST', 'GET'])
 def execute():
-	global running
 	global runningServer
-	if running==True:
-		pass
-	else:
-		cmd =request.form['serverAddr']
-		running = startProgramm(cmd)
+	cmd = request.form['serverAddr']
+	if runningServer != cmd:
+		startProgramm(cmd)
 		runningServer = cmd
 	return redirect('/')
 
+
 @app.route("/stop/")
 def stop():
-	global running
-	running = stopProgramm()
+	stopProgramm()
 	return redirect('/')
+
 
 @app.route("/logs/")
 def logs():
-	global running
-	running = stopProgramm()
+	stopProgramm()
 	return redirect('/')
