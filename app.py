@@ -17,7 +17,7 @@ def startProgramm(cmd):
 	global proc
 	stopProgramm()
 	command = f"./lan-play --relay-server-addr {cmd}"
-	proc = subprocess.Popen(command.split(), stdout=open('output', 'w', 1))
+	proc = subprocess.Popen(command.split())
 
 
 def stopProgramm():
@@ -29,11 +29,10 @@ def stopProgramm():
 
 
 def check_server(server, address):
-	server_address = address[:-6]
-	port_to_check = address[-5:]
+	split_addr = address.split(":")
 
 	# Using os.system nc to check if the port is open
-	up = os.system(f"nc -zv -w 1 {server_address} {port_to_check}") == 0
+	up = os.system(f"nc -zv -w 1 {split_addr[0]} {split_addr[1]}") == 0
 
 	# get online count
 	data = urllib.request.urlopen(f"http://{address}/info").read()
@@ -67,11 +66,5 @@ def execute():
 
 @app.route("/stop/")
 def stop():
-	stopProgramm()
-	return redirect('/')
-
-
-@app.route("/logs/")
-def logs():
 	stopProgramm()
 	return redirect('/')
