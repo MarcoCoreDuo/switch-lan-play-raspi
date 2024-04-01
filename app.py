@@ -5,9 +5,11 @@ import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 import socket
+import logging
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
+app.logger.setLevel(logging.INFO)
 
 runningServer = "None"
 proc = None
@@ -38,11 +40,11 @@ def check_server(server, address):
 	sock.close()
 
 	if up:
-		print(f"{address}: port is open")
+		app.logger.info(f"{address}: port is open")
 		# get online count
 		data = urllib.request.urlopen(f"http://{address}/info").read()
 	else:
-		print(f"{address}: port is closed")
+		app.logger.info(f"{address}: port is closed")
 		return [server, address, up]
 
 	return [server, address, up, json.loads(data)["online"], json.loads(data)["version"]]
