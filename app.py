@@ -1,10 +1,10 @@
 from flask import Flask, render_template, request, redirect
 import configparser
 import subprocess
-import os
 import json
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+import socket
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
@@ -31,13 +31,21 @@ def stopProgramm():
 def check_server(server, address):
 	split_addr = address.split(":")
 
-	# Using os.system nc to check if the port is open
-	up = os.system(f"nc -zv -w 1 {split_addr[0]} {split_addr[1]}") == 0
+	# check if the port is open
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	sock.settimeout(0.5)
+	up = sock.connect_ex((split_addr[0], int(split_addr[1]))) == 0
+	sock.close()
 
-	# get online count
-	data = urllib.request.urlopen(f"http://{address}/info").read()
+	if up:
+		print(f"{address}: port is open")
+		# get online count
+		data = urllib.request.urlopen(f"http://{address}/info").read()
+	else:
+		print(f"{address}: port is closed")
+		return [server, address, up]
 
-	return [server, address, up, json.loads(data)["online"]]
+	return [server, address, up, json.loads(data)["online"], json.loads(data)["version"]]
 
 
 def getServers():
