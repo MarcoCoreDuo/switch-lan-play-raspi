@@ -6,6 +6,7 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 import socket
 import logging
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your secret key'
@@ -36,18 +37,21 @@ def check_server(server, address):
 	# check if the port is open
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	sock.settimeout(0.5)
+	start = time.time()
 	up = sock.connect_ex((split_addr[0], int(split_addr[1]))) == 0
+	end = time.time()
+	ping = round((end - start)*1000)
 	sock.close()
 
 	if up:
-		app.logger.info(f"{address}: port is open")
+		app.logger.info(f"{address}: port is open - {ping}ms")
 		# get online count
 		data = urllib.request.urlopen(f"http://{address}/info").read()
 	else:
 		app.logger.info(f"{address}: port is closed")
 		return [server, address, up]
 
-	return [server, address, up, json.loads(data)["online"], json.loads(data)["version"]]
+	return [server, address, up, json.loads(data)["online"], json.loads(data)["version"], ping]
 
 
 def getServers():

@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 
 {% block content %}
-    <h4>Connected to: {{ runningServer }}</h4>
-    <br><a href="/stop">
+    <br><h4>Connected to: {{ runningServer }}</h4>
+    <a href="/stop">
     <button type="submit" name="serverAddr" class="btn btn-primary">Stop</button>
 </a> <br>
     <table class="table">
@@ -27,7 +27,7 @@
                 </td>
                 <td>
                     {% if server[2] == true %}
-                        <div><i class="bi bi-heart-fill"> Server is up - {{ server[3] }} people online</i></div>
+                        <div><i class="bi bi-heart-fill"> Server is up - {{ server[3] }} people online - {{ server[5] }}ms</i></div>
                         <div>Version {{ server[4] }}</div>
                     {% else %}
                         <div><i class="bi bi-heart-half"> Server is down</i></div>
